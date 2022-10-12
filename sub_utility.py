@@ -43,8 +43,6 @@ def backproject(source, target, levels = 2, scale = 1):
 
 def saliency(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-#    img = img[:,:,0]
-#    img = cv2.GaussianBlur(img,(5,5),0)
     backproj = np.uint8(backproject(img, img, levels = 2))
     cv2.normalize(backproj,backproj,0,255,cv2.NORM_MINMAX)
 
@@ -53,14 +51,7 @@ def saliency(img):
     cv2.pyrMeanShiftFiltering(saliency, 20, 200, saliency, 1)
     saliency = cv2.cvtColor(saliency, cv2.COLOR_BGR2GRAY)
     cv2.equalizeHist(saliency, saliency)
-#    plt.imshow(saliency)
-#    plt.show()
     (T, saliency) = cv2.threshold(saliency, 180, 255, cv2.THRESH_BINARY)
-#    T,saliency = cv2.threshold(saliency,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-#    grab_cut = refine_saliency_with_grabcut(img, saliency)  
-#
-#    (T, saliency) = cv2.threshold(grab_cut, 200, 255, cv2.THRESH_BINARY)  
-    
     return saliency
 
 def getSubImage(rect, src):
@@ -77,7 +68,6 @@ def getSubImage(rect, src):
 
 def largest_N_contours(thresh, N = 3):
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    
     contours = sorted(contours, key = cv2.contourArea, reverse = True)
     candidates = []
     
@@ -86,10 +76,6 @@ def largest_N_contours(thresh, N = 3):
     if contours:
         while len(candidates) < N and i < len(contours):
             cand = contours[i]
-#            rect = cv2.minAreaRect(cand)
-#            if rect[1][0] < 10 or rect[1][1] < 10:
-#                break
-#            roi = getSubImage(rect, thresh)
             epsilon = 0.1*cv2.arcLength(cand,True)
             approx = cv2.approxPolyDP(cand,epsilon,True)
             x,y,w,h = cv2.boundingRect(approx)
@@ -98,7 +84,6 @@ def largest_N_contours(thresh, N = 3):
             
             roi = thresh[y:y+h, x:x+w]
             n_black_pixel = np.sum(roi==0)
-#            print(n_black_pixel / (roi.shape[0] * roi.shape[1]))
 
             if n_black_pixel / (roi.shape[0] * roi.shape[1]) > 0.45:
                 candidates.append(cand)
@@ -106,26 +91,16 @@ def largest_N_contours(thresh, N = 3):
             if len(candidates) > N:
                 break
             i += 1
-    
-#    for cnt in contours[:N]:
-#        
-#        if cv2.contourArea(cnt) < 490_000:
-#            candidates.append(cnt)
-    
     return candidates
 
 def edge_based_segmentated(img):
-#    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = canny(img / 255.)
-    
     filled = ndimage.binary_fill_holes(edges)
-    
     return np.uint8(filled)
     
         
 def refine_saliency_with_grabcut(img, saliency):
     rect = largest_contour_rect(saliency)
-    print(rect)
     bgdmodel = np.zeros((1, 65),np.float64)
     fgdmodel = np.zeros((1, 65),np.float64)
     saliency[np.where(saliency > 0)] = cv2.GC_FGD
@@ -145,25 +120,15 @@ def extract_lbp(imgs, N = 24, R = 16):
         
     return np.array(hist)
 
-#def extract_multiblock_lbp(imgs):
-#    from skimage.feature import multiblock_lbp
-#    from skimage.transform import integral_image
-#    mb_fd = []
-#    for img in imgs:
-#        int_img = integral_image(img)
-#        mb_fd.append(multiblock_lbp(int_img))
-
 
 def hist3D(imgs):
     hist = np.zeros((len(imgs),8000))
     for n in range(len(imgs)):
         hist[n] = cv2.calcHist([imgs[n]], [0,1,2], None, [20,20,20], [0,256,0,256,0,256]).flatten()
-        
     return hist
 
 
 def calcHist(imgs):
-    
     hist = []
     for img in imgs:
         h = cv2.calcHist([img], [0], None, [256], [0, 256])
@@ -208,25 +173,17 @@ def rle_to_vertices(mask_rle, return_img=False, shape=(768,768)):
     for cnt in contours:
         rect = cv2.minAreaRect(cnt)
         ## Storing center information so to assign ship to proper grid
-        #center_x = rect[0][1]
-        #len_x = rect[0][0]
-        #center_y = rect[1][1]
-        #len_y = rect[1][0]
         center_x = int(rect[0][0])
         center_y = int(rect[0][1])
         len_x = int(rect[1][0])
         len_y = int(rect[1][1])
         angle = int(rect[2])
-        #box = cv2.boxPoints(rect)
-        #box = np.int0(box)
         boxes.append([center_x, center_y, len_x, len_y, angle]) 
     if return_img:
         for center_x, center_y, len_x, len_y, angle in boxes:
-            #box = cv2.boxPoints(((len_x, center_x), (len_y, center_y),angle))
             box = cv2.boxPoints(((center_x, center_y), (len_x, len_y),angle))
             box = np.int0(box)
             cv2.drawContours(mask_img,[box],0,200,1)
-            #mask_img[int(center_x)-5:int(center_x)+6, int(center_y)-5:int(center_y)+6] = 200
         return boxes, mask_img
     else:
         return boxes
