@@ -107,11 +107,8 @@ def matchPredictions(clf, img, rle, candidates):
                           cells_per_block=(1,1), visualize='True', 
                           feature_vector = True, block_norm='L2')
 
-#        plt.imshow(hogg, cmap = 'gray')
-#        plt.show()
         fd = fd.reshape(1,512)
         prd = clf.predict(fd)
-#        print(prd)
         vertices = rle_to_vertices(rle)
         if prd[0] == 1:
             if vertices:
@@ -138,9 +135,7 @@ def extract_rotated_roi(X, roi_size = 64):
 
     labels = []
     i = 0
-    
     ship_train = []
-    
     for path, pixels in zip(X['path'],X['EncodedPixels']):
         if type(pixels) == str:
             vertices = rle_to_vertices(pixels)
@@ -158,8 +153,6 @@ def extract_rotated_roi(X, roi_size = 64):
         
             if roi.shape[0]/roi.shape[1] < 1.0:
                 roi = roi.T
-#            plt.imshow(roi)
-#            plt.show()
             roi = cv2.resize(roi, (roi_size,roi_size))
             ship_train.append(roi)
             labels.append(1) # no ship
@@ -167,7 +160,6 @@ def extract_rotated_roi(X, roi_size = 64):
         else:
             img = imageio.imread(path, 'jpg', pilmode = 'L')
             roi = img[0:roi_size,0:roi_size]
-    #        img = cv2.resize(img, (roi_size, roi_size))
             ship_train.append(roi)
             labels.append(0) # no ship
             i += 1
@@ -205,15 +197,12 @@ def extract_roi(X, roi_size = 64):
                 continue
             
             roi = cv2.resize(roi, (roi_size,roi_size))
-#            plt.imshow(roi)
-#            plt.show()
             ship_train.append(roi)
             labels.append(1) # no ship
             i += 1
         else:
             img = imageio.imread(path, 'jpg')
             roi = img[0:roi_size,0:roi_size,:]
-    #        img = cv2.resize(img, (roi_size, roi_size))
             ship_train.append(roi)
             labels.append(0) # no ship
             i += 1
@@ -245,26 +234,17 @@ def measure_score(clf, df, pca = None, scaler = None, PPC = 16, CPB = 4, N = 24,
                 
             
         img = imageio.imread(path,'jpg')
-#        saliency_map = edge_based_segmentated(cv2.GaussianBlur(img,(5,5),0))
-#        print(saliency_map.shape)
         saliency_map = saliency(cv2.GaussianBlur(img,(5,5),0))
         
         saliency_map = cv2.copyMakeBorder(saliency_map,10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
         img = cv2.copyMakeBorder(img,10,10,10,10,cv2.BORDER_CONSTANT,value=(255,255,255))
         candis = largest_N_contours(saliency_map)
         for cand in candis:
-#            plt.imshow(saliency_map, cmap = 'gray')
-#            plt.show()
             NumImgs+=1
             epsilon = 0.1*cv2.arcLength(cand,True)
             approx = cv2.approxPolyDP(cand,epsilon,True)
             x,y,w,h = cv2.boundingRect(approx)
             roi = img[y:y+h, x:x+w]
-
-#            plt.imshow(roi)
-#            plt.show()
-#            print(NumImgs)
-#            print(roi.shape)
             roi_rs = cv2.resize(roi, (64, 64))
             roi_hog, roi_hog_viz = hog(roi_rs, orientations=8, pixels_per_cell = (PPC,PPC),
                           cells_per_block=(CPB,CPB), visualize='True', 
@@ -274,12 +254,10 @@ def measure_score(clf, df, pca = None, scaler = None, PPC = 16, CPB = 4, N = 24,
             
             
             hist = hist3D(np.expand_dims(roi_rs,axis=0))
-#            print(hist.shape)
             roi_rs = cv2.GaussianBlur(img,(9,9),0)
             roi_lbp = localBinaryPattern(cv2.cvtColor(roi_rs, cv2.COLOR_BGR2GRAY), N, R)[np.newaxis,:]
             
             fd = np.hstack((roi_hog, roi_lbp, hist))
-#            print(fd.shape)
             if pca is not None:
                 fd = pca.transform(fd)
             if scaler:
@@ -294,9 +272,7 @@ def measure_score(clf, df, pca = None, scaler = None, PPC = 16, CPB = 4, N = 24,
                 pass
                 img = cv2.rectangle(img, (x,y), (x+w,y+h), (255, 0, 0), 2)
             if is_ship == prd[0]:
-                the_score += 1
-#        imageio.imwrite(f'out/test{i}.jpg',np.hstack((cv2.cvtColor(saliency_map, cv2.COLOR_GRAY2BGR),img)))
-        
+                the_score += 1        
     print("SCORE: ",the_score/NumImgs)
     return ship_count
     
@@ -341,7 +317,5 @@ if __name__ == '__main__':
         from sklearn.ensemble import RandomForestClassifier
         clf = RandomForestClassifier(n_estimators = 200)
         clf.fit(training_features, labels_train)
-        
-    #    ship_count = count_ships(X_test[:500])
         the_s = measure_score(clf,X_test, pca = pca, PPC = 16, CPB = 4, N = 48, R = 16)
     
